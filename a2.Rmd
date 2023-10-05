@@ -1,0 +1,213 @@
+---
+title: "Assignment2"
+author: "Tianen Fan"
+date: "2023-10-04"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(Stat2Data)
+library(readxl)
+data("Hawks")
+```
+```{r}
+wins_data_frame= read_excel("C:/Users/HockeyLeague.xlsx",sheet="Wins")
+losses_data_frame= read_excel("C:/Users/HockeyLeague.xlsx",sheet="Losses")
+wins_data_frame %>% select(1:5) %>% head(3)
+```
+
+
+##1.1 Q1
+```{r}
+library(Stat2Data)
+data("Hawks")
+hSF = Hawks %>%
+filter( Species=='RT' & Weight>1000) %>% 
+select(Wing, Weight, Tail)
+
+```
+
+##1.2 
+```{r}
+hSF_1= hSF %>% arrange(Wing)
+head(hSF_1,5)
+```
+
+##1.3
+```{r}
+species_code = unique(Hawks$Species)
+species_name_full = c( 'Red-tailed', 'Cooper’s','Sharp-shinned')
+hwakSpeciesNameCodes = data.frame(species_code, species_name_full)
+hawksFullName =  Hawks %>% select(Species, Wing, Weight,Tail) %>% rename(species_code= Species)
+hawksFullName_1 = left_join(hawksFullName, hwakSpeciesNameCodes)
+final = select(hawksFullName_1, species_name_full,Wing, Weight, Tail, -species_code)
+final = final %>% rename(Species = species_name_full) 
+head(final,7)
+
+```
+
+##1.4
+```{r}
+hawksm = Hawks %>%  mutate(bird_BMI= 1000* Weight / (Wing ^2)) %>% select(Species, bird_BMI) %>% arrange(desc(bird_BMI))
+head(hawksm,8)
+
+```
+
+##1.5
+```{r}
+sumfinal= final %>% group_by(Species) %>% summarise(num_rows= n(),mn_wing=mean(Wing),nd_wing= median(Wing,na.rm= TRUE),t_mn_wing= mean(Wing,0.1), b_wt_ratio = max(Wing / Tail,na.rm = TRUE))
+```
+
+##Q2
+```{r}
+Num_NAs = Hawks %>% select(Species, Wing, Weight, Culmen, Hallux, Tail, StandardTail, Tarsus, Crop) %>% group_by(Species) %>% summarise(across(everything(), ~sum(is.na(.x))))
+print(Num_NAs)
+
+```
+
+
+##2.1  Q1
+```{r}
+impute_by_mean <- function(x) {
+  mu <- mean(x, na.rm = TRUE)
+  impute_f <- function(z) {
+    if (is.na(z)) {
+      return(mu)
+    } else {
+      return(z)
+    }
+  }
+  return(map_dbl(x, impute_f))
+}
+
+x <- c(1,2,NA,4)
+imputed_x <- impute_by_mean(x)
+print(imputed_x)
+
+
+```
+##Q2
+```{r}
+impute_by_median <- function(x) {
+  mu <- median(x, na.rm = TRUE)
+  impute_f <- function(z) {
+    if (is.na(z)) {
+      return(mu)
+    } else {
+      return(z)
+    }
+  }
+  return(map_dbl(x, impute_f))
+}
+
+v <- c(1,2,NA,4)
+imputed_v <- impute_by_median(v)
+print(imputed_v)
+```
+
+##Q3
+```{r}
+x <- seq(0, 10, by = 0.1)
+y <- 5 * x + 1
+df_xy <- data.frame(x = x, y = y)
+head(df_xy,5)
+
+```
+
+##Q4
+```{r}
+df_xy %>%
+mutate(z=map2_dbl(x,y,~.x+.y)) %>%
+head(5)
+
+sometimes_missing <- function(x,y){
+  if(x%%5==0){
+    return(NA)
+  }
+  else{
+    return(y)
+  }
+}
+index1=14
+value=25
+index2=15
+result1= sometimes_missing(index1,value)
+result2= sometimes_missing(index2,value)
+print(result1)
+print(result2)
+
+x <- seq(0,10,by=0.1)
+df_xy_missing = tibble(x=x) %>%
+  mutate(y = map2_dbl(row_number(),x,~sometimes_missing(.x,5*.y+1)))
+df_xy_missing %>% head(10)
+```
+
+##Q5
+```{r}
+df_xy_imputed = mutate(df_xy_missing,y=impute_by_median(y))
+head(df_xy_imputed)
+```
+
+##2.2 Q1
+```{r}
+wins_data_frame = wins_data_frame %>% rename(Team = ...1)
+wins_long = wins_data_frame %>% pivot_longer(c('1990','1991','1992','1993','1994','1995','1996','1997','1998','1999','2000','2001','2002','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020'), names_to ="Year",values_to ="winsoftotal")
+wins_tidy = wins_long %>% separate(winsoftotal, into = c("Wins", "Total"), sep = " of ", convert = TRUE)
+wins_tidy %>% dim()
+wins_tidy %>% head(5)
+
+```
+
+##Q2
+```{r}
+losses_data_frame  = losses_data_frame %>% rename(Team = ...1)
+losses_long = losses_data_frame %>% pivot_longer(c('1990','1991','1992','1993','1994','1995','1996','1997','1998','1999','2000','2001','2002','2002','2003','2004','2005','2006','2007','2008','2009','2010','2011','2012','2013','2014','2015','2016','2017','2018','2019','2020'), names_to ="Year",values_to ="lossesoftotal")
+losses_tidy = losses_long %>% separate(lossesoftotal, into = c("Losses", "Total"), sep = " of ", convert = TRUE)
+losses_tidy %>% head(5)
+```
+
+##Q3
+
+```{r}
+hockey_df = full_join(wins_tidy, losses_tidy)
+hockey_df= hockey_df %>% mutate(Draw= Total - Wins - Losses, Wins_rt= Wins/Total, Losses_rt= Losses/Total, Draws_rt= Draw/Total)
+hockey_df %>% head(5)
+```
+
+##Q4
+```{r}
+sumhockey= hockey_df %>% group_by(Team) %>% summarise(W_md = median(Wins_rt),W_mn=mean(Wins_rt),L_md=median(Losses_rt),L_mn= mean(Losses_rt), D_md= median(Draws_rt), D_mn = mean(Draws_rt))
+sumhockey %>% arrange(desc(W_md))
+```
+
+##3 Q1
+```{r}
+ducks_data <- filter(wins_tidy, Team == "Ducks")
+ggplot(ducks_data, aes(x = Wins)) +
+  geom_histogram(binwidth = 3) +
+  labs(x = "Wins", y = "Count") 
+
+```
+
+##Q2
+```{r}
+image1= ggplot(ducks_data, aes(x = Wins)) +
+  geom_density(adjust=0.5) +
+  labs(x = "Wins", y = "Count") 
+
+image1
+
+image2=ggplot(ducks_data, aes(x = Wins)) +
+  geom_density(adjust=2) +
+  labs(x = "Wins", y = "Count")
+
+image2
+```
+
+##Q3
+```{r}
+wins_team = wins_tidy %>% select(Year,Team,Wins) %>% pivot_wider(names_from = Team , values_from = Wins)
+print(wins_team)
+ggplot(wins_team,aes(x=Ducks,y= Eagles))+xlab("Ducks")+ylab("Eagles")+geom_point()
+```
